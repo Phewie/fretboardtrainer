@@ -1,1 +1,1 @@
-# bassguitarfretboardnotetrainer.github.io
+# fretboardtrainer.github.io

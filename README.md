@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Auto-Scaling Bass Trainer</title>
+    <title>Bass Guitar Fretboard Trainer</title>
     <style>
         body { font-family: 'Segoe UI', sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; background: #121212; color: #eee; margin: 0; padding: 10px; }
         

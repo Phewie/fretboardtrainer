@@ -1,1 +1,261 @@
-# fretboardtrainer.github.io
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Auto-Scaling Bass Trainer</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; background: #121212; color: #eee; margin: 0; padding: 10px; }
+        
+        /* Container stays stable while canvas resizes */
+        .display-container { display: flex; align-items: center; justify-content: center; gap: 30px; min-height: 280px; width: 100%; margin-bottom: 10px; }
+        
+        #staff-canvas { background: #fff; border-radius: 8px; box-shadow: 0 0 20px rgba(255,255,255,0.1); transition: opacity 0.3s, height 0.2s ease-out; }
+        #note-display { font-size: 80px; font-weight: 800; color: #00d1b2; width: 160px; text-align: center; transition: opacity 0.3s; }
+        
+        .faded { opacity: 0 !important; }
+        .hidden { display: none !important; }
+
+        .controls { background: #1e1e1e; padding: 15px; border-radius: 15px; border: 1px solid #333; max-width: 480px; width: 100%; text-align: center; }
+        .group-label { display: block; margin-bottom: 6px; font-weight: bold; color: #888; text-transform: uppercase; font-size: 10px; letter-spacing: 1px; }
+        .grid-layout { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; margin-bottom: 12px; }
+        .mode-selection { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; margin-bottom: 12px; }
+        label { cursor: pointer; background: #2a2a2a; padding: 8px; border-radius: 6px; font-size: 11px; display: flex; align-items: center; justify-content: center; border: 1px solid transparent; }
+        label:has(input:checked) { border-color: #00d1b2; background: #1e2e2b; color: #00d1b2; }
+        .setting-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin: 10px 0; background: #252525; padding: 8px; border-radius: 8px; }
+        input[type="number"] { width: 45px; background: #111; color: white; border: 1px solid #444; padding: 4px; text-align: center; border-radius: 4px; }
+        button { padding: 15px; cursor: pointer; background: #00d1b2; border: none; border-radius: 8px; font-weight: bold; font-size: 18px; width: 100%; margin-bottom: 15px; }
+        .legend { display: grid; grid-template-columns: 1fr 1fr; background: #111; padding: 12px; border-radius: 8px; border: 1px dashed #444; font-size: 12px; color: #aaa; text-align: left; row-gap: 5px; }
+        .legend-title { grid-column: span 2; text-align: center; color: #fff; font-weight: bold; margin-bottom: 5px; text-transform: uppercase; font-size: 10px; }
+        .legend-item b { color: #00d1b2; }
+
+        /* Style for the visibility toggles row */
+        .toggle-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+    </style>
+</head>
+<body>
+
+    <div class="display-container">
+        <canvas id="staff-canvas" width="260" height="160"></canvas>
+        <div id="note-display">?</div>
+    </div>
+    
+    <div class="controls">
+        <span class="group-label">1. Strings</span>
+        <div class="grid-layout">
+            <label><input type="checkbox" class="string-check" value="B"> B</label>
+            <label><input type="checkbox" class="string-check" value="E" checked> E</label>
+            <label><input type="checkbox" class="string-check" value="A" checked> A</label>
+            <label><input type="checkbox" class="string-check" value="D" checked> D</label>
+            <label><input type="checkbox" class="string-check" value="G" checked> G</label>
+        </div>
+
+        <span class="group-label">2. Range & Timing</span>
+        <div class="setting-row">
+            <div><label style="font-size: 9px;">Min Fret</label><input type="number" id="minFret" value="0"></div>
+            <div><label style="font-size: 9px;">Max Fret</label><input type="number" id="maxFret" value="12"></div>
+            <div><label style="font-size: 9px;">Wait (s)</label><input type="number" id="delayInput" value="3"></div>
+        </div>
+
+        <span class="group-label">3. Note Set & Visibility</span>
+        <div class="mode-selection">
+            <label><input type="radio" name="mode" value="natural" checked> Naturals</label>
+            <label><input type="radio" name="mode" value="sharps"> Sharps</label>
+            <label><input type="radio" name="mode" value="flats"> Flats</label>
+            <label><input type="radio" name="mode" value="all"> All</label>
+        </div>
+
+        <div class="toggle-row">
+            <label><input type="checkbox" id="toggleStaff" checked> Staff</label>
+            <label><input type="checkbox" id="toggleNoteName" checked> Note Name</label>
+            <label><input type="checkbox" id="toggleOctave" checked> Oct #</label>
+        </div>
+
+        <button id="startButton">Start Training</button>
+
+        <div class="legend">
+            <div class="legend-title">Standard 5-String Reference</div>
+            <div class="legend-item"><b>B String</b> starts at <b>B0</b></div>
+            <div class="legend-item"><b>D String</b> starts at <b>D2</b></div>
+            <div class="legend-item"><b>E String</b> starts at <b>E1</b></div>
+            <div class="legend-item"><b>G String</b> starts at <b>G2</b></div>
+            <div class="legend-item"><b>A String</b> starts at <b>A1</b></div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('staff-canvas');
+        const ctx = canvas.getContext('2d');
+        const noteDisplay = document.getElementById('note-display');
+
+        const bassMethodMap = {
+            "G4": 21, "F4": 20, "E4": 19, "D4": 18, "C4": 17, "B3": 16, "A3": 15, "G3": 14, "F3": 13, 
+            "E3": 12, "D3": 11, "C3": 10, "B2": 9, "A2": 8, "G2": 7, "F2": 6, "E2": 5, "D2": 4, 
+            "C2": 3, "B1": 2, "A1": 1, "G1": 0, "F1": -1, "E1": -2, "D1": -3, "C1": -4, "B0": -5
+        };
+
+        const neck = {
+            'B': ["B0", "C1", "C#1", "D1", "Eb1", "E1", "F1", "F#1", "G1", "G#1", "A1", "Bb1", "B1", "C2", "C#2", "D2", "Eb2", "E2", "F2", "F#2", "G2", "G#2", "A2", "Bb2", "B2"],
+            'E': ["E1", "F1", "F#1", "G1", "G#1", "A1", "Bb1", "B1", "C2", "C#2", "D2", "Eb2", "E2", "F2", "F#2", "G2", "G#2", "A2", "Bb2", "B2", "C3", "C#3", "D3", "Eb3", "E3"],
+            'A': ["A1", "Bb1", "B1", "C2", "C#2", "D2", "Eb2", "E2", "F2", "F#2", "G2", "G#2", "A2", "Bb2", "B2", "C3", "C#3", "D3", "Eb3", "E3", "F3", "F#3", "G3", "G#3", "A3"],
+            'D': ["D2", "Eb2", "E2", "F2", "F#2", "G2", "G#2", "A2", "Bb2", "B2", "C3", "C#3", "D3", "Eb3", "E3", "F3", "F#3", "G3", "G#3", "A3", "Bb3", "B3", "C4", "C#4", "D4"],
+            'G': ["G2", "G#2", "A2", "Bb2", "B2", "C3", "C#3", "D3", "Eb3", "E3", "F3", "F#3", "G3", "G#3", "A3", "Bb3", "B3", "C4", "C#4", "D4", "Eb4", "E4", "F4", "F#4", "G4"]
+        };
+
+        const noteTypes = {
+            natural: ["C", "D", "E", "F", "G", "A", "B"],
+            sharps: ["C#", "D#", "F#", "G#", "A#"],
+            flats: ["Db", "Eb", "Gb", "Ab", "Bb"]
+        };
+
+        const openFrequencies = { 'B': 30.87, 'E': 41.20, 'A': 55.00, 'D': 73.42, 'G': 98.00 };
+        let audioCtx = null, isRunning = false, timeoutId = null;
+
+        function drawStaff(noteName) {
+            const lineSpacing = 18;
+            let pos = 0;
+            if (noteName && noteName !== "?") {
+                const pureNote = noteName.replace(/[#b0-9]/g, '') + noteName.slice(-1);
+                pos = bassMethodMap[pureNote];
+            }
+
+            const topLedgers = pos > 8 ? Math.ceil((pos - 8) / 2) : 0;
+            const bottomLedgers = pos < 0 ? Math.ceil(Math.abs(pos) / 2) : 0;
+            
+            const paddingTop = Math.max(30, topLedgers * lineSpacing + 20);
+            const paddingBottom = Math.max(30, (bottomLedgers * lineSpacing) + 20);
+            const staffHeight = 4 * lineSpacing;
+            
+            const newHeight = staffHeight + paddingTop + paddingBottom;
+            canvas.height = newHeight;
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const bottomLineY = paddingTop + staffHeight;
+
+            // Visibility Check
+            if(!document.getElementById('toggleStaff').checked) {
+                canvas.classList.add('hidden');
+            } else {
+                canvas.classList.remove('hidden');
+            }
+
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 1.5;
+            for(let i=0; i<5; i++) {
+                let y = bottomLineY - (i * lineSpacing);
+                ctx.beginPath(); ctx.moveTo(20, y); ctx.lineTo(240, y); ctx.stroke();
+            }
+
+            const fLineY = bottomLineY - (3 * lineSpacing);
+            ctx.fillStyle = '#000';
+            ctx.font = '70px serif';
+            ctx.fillText('𝄢', 15, fLineY + 26); 
+
+            if (!noteName || noteName === "?") return;
+
+            const noteY = bottomLineY - (pos * (lineSpacing / 2));
+            ctx.strokeStyle = '#000';
+            
+            if (pos >= 9) { 
+                for (let i = 10; i <= pos; i += 2) {
+                    let ly = bottomLineY - (i * (lineSpacing / 2));
+                    ctx.beginPath(); ctx.moveTo(130, ly); ctx.lineTo(170, ly); ctx.stroke();
+                }
+            }
+            if (pos <= -2) { 
+                for (let i = -2; i >= pos; i -= 2) {
+                    let ly = bottomLineY - (i * (lineSpacing / 2));
+                    ctx.beginPath(); ctx.moveTo(130, ly); ctx.lineTo(170, ly); ctx.stroke();
+                }
+            }
+
+            ctx.beginPath();
+            ctx.ellipse(150, noteY, 8.5, 6, 0.2, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.font = '22px serif';
+            if (noteName.includes('#')) ctx.fillText('♯', 125, noteY + 7);
+            if (noteName.includes('b')) ctx.fillText('♭', 125, noteY + 7);
+        }
+
+        function playNote(freq) {
+            const now = audioCtx.currentTime;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(freq, now);
+            gain.gain.setValueAtTime(0, now);
+            gain.gain.linearRampToValueAtTime(0.4, now + 0.05);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 1.1);
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.start(); osc.stop(now + 1.2);
+        }
+
+        async function loop() {
+            if (!isRunning) return;
+            const selectedStrings = Array.from(document.querySelectorAll('.string-check:checked')).map(cb => cb.value);
+            if (selectedStrings.length === 0) return;
+            const mode = document.querySelector('input[name="mode"]:checked').value;
+            const minF = parseInt(document.getElementById('minFret').value);
+            const maxF = parseInt(document.getElementById('maxFret').value);
+            const waitTime = parseInt(document.getElementById('delayInput').value) * 1000;
+            const showOctave = document.getElementById('toggleOctave').checked;
+            const showName = document.getElementById('toggleNoteName').checked;
+
+            const randomString = selectedStrings[Math.floor(Math.random() * selectedStrings.length)];
+            let validFrets = [];
+            for (let i = minF; i <= maxF; i++) {
+                if (i >= 0 && i < neck[randomString].length) {
+                    let fullNote = neck[randomString][i];
+                    let nameOnly = fullNote.replace(/[0-9]/g, '');
+                    if (mode === 'all') validFrets.push(i);
+                    else if (mode === 'natural' && noteTypes.natural.includes(nameOnly)) validFrets.push(i);
+                    else if (mode === 'sharps' && nameOnly.includes('#')) validFrets.push(i);
+                    else if (mode === 'flats' && nameOnly.includes('b')) validFrets.push(i);
+                }
+            }
+            if (validFrets.length === 0) { setTimeout(loop, 200); return; }
+            const fret = validFrets[Math.floor(Math.random() * validFrets.length)];
+            const fullNoteName = neck[randomString][fret];
+            
+            // Visibility logic for Note Name
+            if (showName) {
+                noteDisplay.classList.remove('hidden');
+                noteDisplay.innerText = showOctave ? fullNoteName : fullNoteName.replace(/[0-9]/g, '');
+            } else {
+                noteDisplay.classList.add('hidden');
+            }
+
+            drawStaff(fullNoteName);
+            
+            noteDisplay.classList.remove('faded');
+            canvas.classList.remove('faded');
+            timeoutId = setTimeout(() => {
+                if (!isRunning) return;
+                playNote(openFrequencies[randomString] * Math.pow(2, fret / 12));
+                timeoutId = setTimeout(() => {
+                    if (!isRunning) return;
+                    noteDisplay.classList.add('faded');
+                    canvas.classList.add('faded');
+                    timeoutId = setTimeout(loop, 400);
+                }, 800); 
+            }, waitTime);
+        }
+
+        document.getElementById('startButton').addEventListener('click', () => {
+            if (!audioCtx) audioCtx = new AudioContext();
+            isRunning = !isRunning;
+            document.getElementById('startButton').innerText = isRunning ? "Stop Training" : "Start Training";
+            if (isRunning) loop(); else clearTimeout(timeoutId);
+        });
+
+        // Add event listeners to toggles to update UI immediately
+        document.getElementById('toggleStaff').addEventListener('change', () => drawStaff("?"));
+        document.getElementById('toggleNoteName').addEventListener('change', (e) => {
+            if(e.target.checked) noteDisplay.classList.remove('hidden');
+            else noteDisplay.classList.add('hidden');
+        });
+
+        drawStaff("?");
+    </script>
+</body>
+</html>

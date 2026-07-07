@@ -2,8 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Bass Guitar Fretboard Trainer</title>
-    <center><H1> >>>>> Bass Guitar Fretboard Trainer <<<<< </H1></center>
+    <title>Auto-Scaling Bass Trainer</title>
     <style>
         body { font-family: 'Segoe UI', sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; background: #121212; color: #eee; margin: 0; padding: 10px; }
         
@@ -18,19 +17,33 @@
 
         .controls { background: #1e1e1e; padding: 15px; border-radius: 15px; border: 1px solid #333; max-width: 480px; width: 100%; text-align: center; }
         .group-label { display: block; margin-bottom: 6px; font-weight: bold; color: #888; text-transform: uppercase; font-size: 10px; letter-spacing: 1px; }
+        
+        /* Layout Grids */
         .grid-layout { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; margin-bottom: 12px; }
         .mode-selection { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; margin-bottom: 12px; }
-        label { cursor: pointer; background: #2a2a2a; padding: 8px; border-radius: 6px; font-size: 11px; display: flex; align-items: center; justify-content: center; border: 1px solid transparent; }
-        label:has(input:checked) { border-color: #00d1b2; background: #1e2e2b; color: #00d1b2; }
-        .setting-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin: 10px 0; background: #252525; padding: 8px; border-radius: 8px; }
-        input[type="number"] { width: 45px; background: #111; color: white; border: 1px solid #444; padding: 4px; text-align: center; border-radius: 4px; }
-        button { padding: 15px; cursor: pointer; background: #00d1b2; border: none; border-radius: 8px; font-weight: bold; font-size: 18px; width: 100%; margin-bottom: 15px; }
+        .toggle-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+        
+        /* Clickable UI Toggle Blocks */
+        .btn-toggle { cursor: pointer; background: #2a2a2a; padding: 8px; border-radius: 6px; font-size: 11px; display: flex; align-items: center; justify-content: center; border: 1px solid transparent; user-select: none; color: #eee; }
+        .btn-toggle input { margin-right: 5px; cursor: pointer; }
+        
+        /* Active State Classes applied via JavaScript */
+        .btn-toggle.active { border-color: #00d1b2; background: #1e2e2b; color: #00d1b2; }
+        
+        /* Range & Settings Row */
+        .setting-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 10px 0; background: #252525; padding: 8px; border-radius: 8px; }
+        .setting-item { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .setting-item span { font-size: 9px; color: #aaa; margin-bottom: 4px; font-weight: bold; text-transform: uppercase; }
+        
+        input[type="number"] { width: 45px; background: #111; color: white; border: 1px solid #444; padding: 4px; text-align: center; border-radius: 4px; font-size: 12px; }
+        .marker-checkbox { cursor: pointer; transform: scale(1.2); margin: 4px 0; }
+
+        button#startButton { padding: 15px; cursor: pointer; background: #00d1b2; border: none; border-radius: 8px; font-weight: bold; font-size: 18px; width: 100%; margin-bottom: 15px; color: #111; }
+        button#startButton:hover { background: #02eecb; }
+        
         .legend { display: grid; grid-template-columns: 1fr 1fr; background: #111; padding: 12px; border-radius: 8px; border: 1px dashed #444; font-size: 12px; color: #aaa; text-align: left; row-gap: 5px; }
         .legend-title { grid-column: span 2; text-align: center; color: #fff; font-weight: bold; margin-bottom: 5px; text-transform: uppercase; font-size: 10px; }
         .legend-item b { color: #00d1b2; }
-
-        /* Style for the visibility toggles row */
-        .toggle-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 12px; }
     </style>
 </head>
 <body>
@@ -43,32 +56,33 @@
     <div class="controls">
         <span class="group-label">1. Strings</span>
         <div class="grid-layout">
-            <label><input type="checkbox" class="string-check" value="B"> B</label>
-            <label><input type="checkbox" class="string-check" value="E" checked> E</label>
-            <label><input type="checkbox" class="string-check" value="A" checked> A</label>
-            <label><input type="checkbox" class="string-check" value="D" checked> D</label>
-            <label><input type="checkbox" class="string-check" value="G" checked> G</label>
+            <div class="btn-toggle"><input type="checkbox" class="string-check" value="B">B</div>
+            <div class="btn-toggle active"><input type="checkbox" class="string-check" value="E" checked>E</div>
+            <div class="btn-toggle active"><input type="checkbox" class="string-check" value="A" checked>A</div>
+            <div class="btn-toggle active"><input type="checkbox" class="string-check" value="D" checked>D</div>
+            <div class="btn-toggle active"><input type="checkbox" class="string-check" value="G" checked>G</div>
         </div>
 
         <span class="group-label">2. Range & Timing</span>
         <div class="setting-row">
-            <div><label style="font-size: 9px;">Min Fret</label><input type="number" id="minFret" value="0"></div>
-            <div><label style="font-size: 9px;">Max Fret</label><input type="number" id="maxFret" value="12"></div>
-            <div><label style="font-size: 9px;">Wait (s)</label><input type="number" id="delayInput" value="3"></div>
+            <div class="setting-item"><span>Min Fret</span><input type="number" id="minFret" value="0"></div>
+            <div class="setting-item"><span>Max Fret</span><input type="number" id="maxFret" value="12"></div>
+            <div class="setting-item"><span>Wait (s)</span><input type="number" id="delayInput" value="3"></div>
+            <div class="setting-item"><span>Markers</span><input type="checkbox" id="markersOnly" class="marker-checkbox"></div>
         </div>
 
         <span class="group-label">3. Note Set & Visibility</span>
         <div class="mode-selection">
-            <label><input type="radio" name="mode" value="natural" checked> Naturals</label>
-            <label><input type="radio" name="mode" value="sharps"> Sharps</label>
-            <label><input type="radio" name="mode" value="flats"> Flats</label>
-            <label><input type="radio" name="mode" value="all"> All</label>
+            <div class="btn-toggle active"><input type="radio" name="mode" value="natural" checked>Naturals</div>
+            <div class="btn-toggle"><input type="radio" name="mode" value="sharps">Sharps</div>
+            <div class="btn-toggle"><input type="radio" name="mode" value="flats">Flats</div>
+            <div class="btn-toggle"><input type="radio" name="mode" value="all">All</div>
         </div>
 
         <div class="toggle-row">
-            <label><input type="checkbox" id="toggleStaff" checked> Staff</label>
-            <label><input type="checkbox" id="toggleNoteName" checked> Note Name</label>
-            <label><input type="checkbox" id="toggleOctave" checked> Oct #</label>
+            <div class="btn-toggle active"><input type="checkbox" id="toggleStaff" checked>Staff</div>
+            <div class="btn-toggle active"><input type="checkbox" id="toggleNoteName" checked>Note Name</div>
+            <div class="btn-toggle active"><input type="checkbox" id="toggleOctave" checked>Oct #</div>
         </div>
 
         <button id="startButton">Start Training</button>
@@ -108,8 +122,42 @@
             flats: ["Db", "Eb", "Gb", "Ab", "Bb"]
         };
 
+        const fretMarkers = [3, 5, 7, 9, 12, 15, 17, 19, 21];
         const openFrequencies = { 'B': 30.87, 'E': 41.20, 'A': 55.00, 'D': 73.42, 'G': 98.00 };
         let audioCtx = null, isRunning = false, timeoutId = null;
+
+        // Visual Synchronization Engine for Custom UI Elements
+        function syncUIStyles() {
+            document.querySelectorAll('.btn-toggle').forEach(container => {
+                const input = container.querySelector('input');
+                if (input && input.checked) {
+                    container.classList.add('active');
+                } else {
+                    container.classList.remove('active');
+                }
+            });
+        }
+
+        // Attach direct, resilient click handlers to visual toggle boxes
+        document.querySelectorAll('.btn-toggle').forEach(container => {
+            container.addEventListener('click', (e) => {
+                const input = container.querySelector('input');
+                // Avoid double toggling if the user clicked the inner input directly
+                if (e.target !== input) {
+                    input.checked = !input.checked;
+                    // Fire synthetic change event to trigger updates
+                    input.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+                
+                // Special handling for Radio Group visual updates
+                if (input.type === 'radio') {
+                    document.querySelectorAll(`input[name="${input.name}"]`).forEach(r => {
+                        r.closest('.btn-toggle').classList.remove('active');
+                    });
+                }
+                syncUIStyles();
+            });
+        });
 
         function drawStaff(noteName) {
             const lineSpacing = 18;
@@ -132,7 +180,6 @@
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             const bottomLineY = paddingTop + staffHeight;
 
-            // Visibility Check
             if(!document.getElementById('toggleStaff').checked) {
                 canvas.classList.add('hidden');
             } else {
@@ -201,11 +248,15 @@
             const waitTime = parseInt(document.getElementById('delayInput').value) * 1000;
             const showOctave = document.getElementById('toggleOctave').checked;
             const showName = document.getElementById('toggleNoteName').checked;
+            const filterMarkers = document.getElementById('markersOnly').checked;
 
             const randomString = selectedStrings[Math.floor(Math.random() * selectedStrings.length)];
             let validFrets = [];
+            
             for (let i = minF; i <= maxF; i++) {
                 if (i >= 0 && i < neck[randomString].length) {
+                    if (filterMarkers && !fretMarkers.includes(i)) continue;
+
                     let fullNote = neck[randomString][i];
                     let nameOnly = fullNote.replace(/[0-9]/g, '');
                     if (mode === 'all') validFrets.push(i);
@@ -218,7 +269,6 @@
             const fret = validFrets[Math.floor(Math.random() * validFrets.length)];
             const fullNoteName = neck[randomString][fret];
             
-            // Visibility logic for Note Name
             if (showName) {
                 noteDisplay.classList.remove('hidden');
                 noteDisplay.innerText = showOctave ? fullNoteName : fullNoteName.replace(/[0-9]/g, '');
@@ -249,14 +299,15 @@
             if (isRunning) loop(); else clearTimeout(timeoutId);
         });
 
-        // Add event listeners to toggles to update UI immediately
         document.getElementById('toggleStaff').addEventListener('change', () => drawStaff("?"));
         document.getElementById('toggleNoteName').addEventListener('change', (e) => {
             if(e.target.checked) noteDisplay.classList.remove('hidden');
             else noteDisplay.classList.add('hidden');
         });
 
+        // Initialize UI view setup
         drawStaff("?");
+        syncUIStyles();
     </script>
 </body>
 </html>

@@ -15,25 +15,56 @@
         .faded { opacity: 0 !important; }
         .hidden { display: none !important; }
 
+        /* Fretboard Styles */
+        .fretboard-container { width: 100%; max-width: 800px; background: #1a1512; border: 4px solid #3a2e2b; border-radius: 6px; box-shadow: inset 0 0 20px rgba(0,0,0,0.8), 0 4px 10px rgba(0,0,0,0.5); margin-bottom: 20px; padding: 10px 0; overflow-x: auto; position: relative; }
+        .fretboard { display: flex; flex-direction: column; position: relative; min-width: 600px; }
+        
+        /* String lane container */
+        .string-lane { display: flex; height: 30px; position: relative; align-items: center; transition: opacity 0.3s; }
+        /* Dim unselected strings instead of removing them */
+        .string-lane.inactive-string { opacity: 0.15; }
+        
+        /* String lines running horizontally */
+        .string-line { position: absolute; left: 0; right: 0; background: linear-gradient(to bottom, #eee, #999, #555); height: 3px; box-shadow: 0 1px 2px rgba(0,0,0,0.4); pointer-events: none; z-index: 1; }
+        /* Thicker strings for lower pitches */
+        .string-lane[data-string="B"] .string-line { height: 5px; }
+        .string-lane[data-string="E"] .string-line { height: 4px; }
+        .string-lane[data-string="A"] .string-line { height: 3.5px; }
+        
+        .fret-cell { flex: 1; position: relative; display: flex; align-items: center; justify-content: center; border-right: 2px solid #b5945b; height: 100%; box-sizing: border-box; }
+        .fret-cell:first-child { border-right: 5px solid #fff; background: #221a16; max-width: 45px; min-width: 45px; } /* Nut / Open String */
+        
+        /* Fret Numbers header */
+        .fret-numbers { display: flex; min-width: 600px; border-bottom: 1px solid #333; margin-bottom: 4px; padding-left: 0; }
+        .fret-num-cell { flex: 1; text-align: center; font-size: 10px; color: #777; font-weight: bold; }
+        .fret-num-cell:first-child { max-width: 45px; min-width: 45px; }
+
+        /* Real-time Note Marker dot */
+        .fret-note-marker { width: 22px; height: 22px; border-radius: 50%; background: #00d1b2; color: #111; font-size: 10px; font-weight: bold; display: flex; align-items: center; justify-content: center; z-index: 3; box-shadow: 0 0 12px #00d1b2; opacity: 0; transition: opacity 0.3s; transform: scale(0.9); }
+        .fret-note-marker.active { opacity: 1; transform: scale(1); }
+
+        /* Traditional Fretboard Pearl Dots background layout */
+        .fret-dot { position: absolute; width: 10px; height: 10px; background: #e0e0e0; border-radius: 50%; z-index: 0; pointer-events: none; opacity: 0.6; box-shadow: inset 0 1px 2px rgba(0,0,0,0.4); }
+        .fret-dot.double-top { transform: translateY(-15px); }
+        .fret-dot.double-bottom { transform: translateY(15px); }
+
         .controls { background: #1e1e1e; padding: 15px; border-radius: 15px; border: 1px solid #333; max-width: 480px; width: 100%; text-align: center; }
         .group-label { display: block; margin-bottom: 6px; font-weight: bold; color: #888; text-transform: uppercase; font-size: 10px; letter-spacing: 1px; }
         
         /* Layout Grids */
         .grid-layout { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; margin-bottom: 12px; }
         .mode-selection { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; margin-bottom: 12px; }
-        .toggle-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+        .toggle-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 12px; }
         
         /* Clickable UI Toggle Blocks */
         .btn-toggle { cursor: pointer; background: #2a2a2a; padding: 8px; border-radius: 6px; font-size: 11px; display: flex; align-items: center; justify-content: center; border: 1px solid transparent; user-select: none; color: #eee; }
         .btn-toggle input { margin-right: 5px; cursor: pointer; }
-        
-        /* Active State Classes applied via JavaScript */
         .btn-toggle.active { border-color: #00d1b2; background: #1e2e2b; color: #00d1b2; }
         
         /* Range & Settings Row */
         .setting-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 10px 0; background: #252525; padding: 8px; border-radius: 8px; }
         .setting-item { display: flex; flex-direction: column; align-items: center; justify-content: center; }
-        .setting-item span { font-size: 9px; color: #aaa; margin-bottom: 4px; font-weight: bold; text-transform: uppercase; }
+        .setting-item span { font-size: 9px; color: #aaa; margin-bottom: 4px; font-weight: bold; text-transform: uppercase; font-size: 8px; }
         
         input[type="number"] { width: 45px; background: #111; color: white; border: 1px solid #444; padding: 4px; text-align: center; border-radius: 4px; font-size: 12px; }
         .marker-checkbox { cursor: pointer; transform: scale(1.2); margin: 4px 0; }
@@ -51,6 +82,11 @@
     <div class="display-container">
         <canvas id="staff-canvas" width="260" height="160"></canvas>
         <div id="note-display">?</div>
+    </div>
+
+    <div class="fretboard-container" id="fretboardContainerFrame">
+        <div class="fret-numbers" id="fretNumbersHeader"></div>
+        <div class="fretboard" id="fretboardNeck"></div>
     </div>
     
     <div class="controls">
@@ -81,8 +117,9 @@
 
         <div class="toggle-row">
             <div class="btn-toggle active"><input type="checkbox" id="toggleStaff" checked>Staff</div>
-            <div class="btn-toggle active"><input type="checkbox" id="toggleNoteName" checked>Note Name</div>
+            <div class="btn-toggle active"><input type="checkbox" id="toggleNoteName" checked>Note</div>
             <div class="btn-toggle active"><input type="checkbox" id="toggleOctave" checked>Oct #</div>
+            <div class="btn-toggle active"><input type="checkbox" id="toggleFretboard" checked>Fretboard</div>
         </div>
 
         <button id="startButton">Start Training</button>
@@ -101,6 +138,7 @@
         const canvas = document.getElementById('staff-canvas');
         const ctx = canvas.getContext('2d');
         const noteDisplay = document.getElementById('note-display');
+        const fretboardContainer = document.getElementById('fretboardContainerFrame');
 
         const bassMethodMap = {
             "G4": 21, "F4": 20, "E4": 19, "D4": 18, "C4": 17, "B3": 16, "A3": 15, "G3": 14, "F3": 13, 
@@ -126,7 +164,120 @@
         const openFrequencies = { 'B': 30.87, 'E': 41.20, 'A': 55.00, 'D': 73.42, 'G': 98.00 };
         let audioCtx = null, isRunning = false, timeoutId = null;
 
-        // Visual Synchronization Engine for Custom UI Elements
+        // Render the physical fretboard visualization based on controls
+        function buildFretboard() {
+            // Check visibility state first
+            if (!document.getElementById('toggleFretboard').checked) {
+                fretboardContainer.classList.add('hidden');
+                return;
+            } else {
+                fretboardContainer.classList.remove('hidden');
+            }
+
+            const minF = Math.max(0, parseInt(document.getElementById('minFret').value) || 0);
+            const maxF = Math.min(24, parseInt(document.getElementById('maxFret').value) || 12);
+            
+            const header = document.getElementById('fretNumbersHeader');
+            const board = document.getElementById('fretboardNeck');
+            
+            header.innerHTML = '';
+            board.innerHTML = '';
+
+            // 1. Build out the Fret numbers text tracking row
+            const openLabel = document.createElement('div');
+            openLabel.className = 'fret-num-cell';
+            openLabel.innerText = 'Nut';
+            header.appendChild(openLabel);
+
+            for (let f = minF; f <= maxF; f++) {
+                if (f === 0) continue; 
+                const cell = document.createElement('div');
+                cell.className = 'fret-num-cell';
+                cell.innerText = f;
+                header.appendChild(cell);
+            }
+
+            // 2. Always maintain the full standard 5-string layout order (G down to B)
+            const stringOrder = ['G', 'D', 'A', 'E', 'B'];
+            const activeStrings = Array.from(document.querySelectorAll('.string-check:checked')).map(cb => cb.value);
+
+            // 3. Draw each running string row lane
+            stringOrder.forEach((stringName, index) => {
+                const lane = document.createElement('div');
+                lane.className = 'string-lane';
+                lane.setAttribute('data-string', stringName);
+                
+                if (!activeStrings.includes(stringName)) {
+                    lane.classList.add('inactive-string');
+                }
+
+                const line = document.createElement('div');
+                line.className = 'string-line';
+                lane.appendChild(line);
+
+                // Add Nut / Open position cell element
+                const nutCell = document.createElement('div');
+                nutCell.className = 'fret-cell';
+                nutCell.setAttribute('data-fret', '0');
+                
+                const marker = document.createElement('div');
+                marker.className = 'fret-note-marker';
+                marker.id = `marker-${stringName}-0`;
+                nutCell.appendChild(marker);
+                lane.appendChild(nutCell);
+
+                // Add incrementally defined fret bars
+                for (let f = minF; f <= maxF; f++) {
+                    if (f === 0) continue;
+                    const cell = document.createElement('div');
+                    cell.className = 'fret-cell';
+                    cell.setAttribute('data-fret', f);
+
+                    // Place standard fret marker dots directly in the true middle lane (A string position at index 2)
+                    if (fretMarkers.includes(f) && index === 2) {
+                        const dot = document.createElement('div');
+                        if (f === 12) {
+                            const dot2 = document.createElement('div');
+                            dot.className = 'fret-dot double-top';
+                            dot2.className = 'fret-dot double-bottom';
+                            cell.appendChild(dot2);
+                        } else {
+                            dot.className = 'fret-dot';
+                        }
+                        cell.appendChild(dot);
+                    }
+
+                    const fMarker = document.createElement('div');
+                    fMarker.className = 'fret-note-marker';
+                    fMarker.id = `marker-${stringName}-${f}`;
+                    cell.appendChild(fMarker);
+                    lane.appendChild(cell);
+                }
+
+                board.appendChild(lane);
+            });
+        }
+
+        function highlightFretboardNote(string, fret, noteText) {
+            document.querySelectorAll('.fret-note-marker').forEach(m => {
+                m.classList.remove('active');
+                m.innerText = '';
+            });
+
+            // Only attempt highlighting if the fretboard is currently active/visible
+            if (!document.getElementById('toggleFretboard').checked) return;
+
+            const targetMarker = document.getElementById(`marker-${string}-${fret}`);
+            if (targetMarker) {
+                targetMarker.innerText = noteText.replace(/[0-9]/g, '');
+                targetMarker.classList.add('active');
+            }
+        }
+
+        function clearFretboardHighlights() {
+            document.querySelectorAll('.fret-note-marker').forEach(m => m.classList.remove('active'));
+        }
+
         function syncUIStyles() {
             document.querySelectorAll('.btn-toggle').forEach(container => {
                 const input = container.querySelector('input');
@@ -138,18 +289,14 @@
             });
         }
 
-        // Attach direct, resilient click handlers to visual toggle boxes
         document.querySelectorAll('.btn-toggle').forEach(container => {
             container.addEventListener('click', (e) => {
                 const input = container.querySelector('input');
-                // Avoid double toggling if the user clicked the inner input directly
                 if (e.target !== input) {
                     input.checked = !input.checked;
-                    // Fire synthetic change event to trigger updates
                     input.dispatchEvent(new Event('change', { bubbles: true }));
                 }
                 
-                // Special handling for Radio Group visual updates
                 if (input.type === 'radio') {
                     document.querySelectorAll(`input[name="${input.name}"]`).forEach(r => {
                         r.closest('.btn-toggle').classList.remove('active');
@@ -158,6 +305,11 @@
                 syncUIStyles();
             });
         });
+
+        document.querySelectorAll('.string-check').forEach(cb => cb.addEventListener('change', buildFretboard));
+        document.getElementById('minFret').addEventListener('input', buildFretboard);
+        document.getElementById('maxFret').addEventListener('input', buildFretboard);
+        document.getElementById('toggleFretboard').addEventListener('change', buildFretboard);
 
         function drawStaff(noteName) {
             const lineSpacing = 18;
@@ -277,6 +429,7 @@
             }
 
             drawStaff(fullNoteName);
+            highlightFretboardNote(randomString, fret, fullNoteName);
             
             noteDisplay.classList.remove('faded');
             canvas.classList.remove('faded');
@@ -287,6 +440,7 @@
                     if (!isRunning) return;
                     noteDisplay.classList.add('faded');
                     canvas.classList.add('faded');
+                    clearFretboardHighlights();
                     timeoutId = setTimeout(loop, 400);
                 }, 800); 
             }, waitTime);
@@ -296,7 +450,10 @@
             if (!audioCtx) audioCtx = new AudioContext();
             isRunning = !isRunning;
             document.getElementById('startButton').innerText = isRunning ? "Stop Training" : "Start Training";
-            if (isRunning) loop(); else clearTimeout(timeoutId);
+            if (isRunning) loop(); else {
+                clearTimeout(timeoutId);
+                clearFretboardHighlights();
+            }
         });
 
         document.getElementById('toggleStaff').addEventListener('change', () => drawStaff("?"));
@@ -305,8 +462,9 @@
             else noteDisplay.classList.add('hidden');
         });
 
-        // Initialize UI view setup
+        // Initialize layouts
         drawStaff("?");
+        buildFretboard();
         syncUIStyles();
     </script>
 </body>
